@@ -6,13 +6,14 @@ from config import DATASET_ID, SEASON_START, TEAMS
 load_dotenv()
 
 STARSCAPE_BASE = "https://starscape.infegy.com/api"
-TOKEN = os.getenv("STARSCAPE_TOKEN")
-print(f"STARSCAPE_TOKEN loaded: {'YES (len=' + str(len(TOKEN)) + ')' if TOKEN else 'NO - TOKEN IS MISSING'}")
-
-HEADERS = {
-    "Authorization": f"Bearer {TOKEN}",
-    "Content-Type": "application/json"
-}
+def get_headers():
+    token = os.getenv("STARSCAPE_TOKEN")
+    if not token:
+        print("ERROR: STARSCAPE_TOKEN is missing from environment variables")
+    return {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json"
+    }
 
 
 def get_team_sentiment(team):
@@ -52,7 +53,7 @@ def get_team_sentiment(team):
         r = requests.post(
             f"{STARSCAPE_BASE}/query/agg?include_total=true",
             json=payload,
-            headers=HEADERS,
+            headers=get_headers(),
             timeout=30
         )
         r.raise_for_status()
@@ -146,7 +147,7 @@ def get_team_sentiment_history(team):
         r = requests.post(
             f"{STARSCAPE_BASE}/query/agg",
             json=payload,
-            headers=HEADERS,
+            headers=get_headers(),
             timeout=30
         )
         r.raise_for_status()
