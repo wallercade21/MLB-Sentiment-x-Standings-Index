@@ -103,5 +103,13 @@ def team_detail(abbr):
     )
 
 
+@app.route("/refresh")
+def refresh():
+    """Clears the cache and redirects to the dashboard for a fresh data load."""
+    cache.clear()
+    from flask import redirect
+    return redirect("/")
+
+
 if __name__ == "__main__":
     app.run(debug=True)
