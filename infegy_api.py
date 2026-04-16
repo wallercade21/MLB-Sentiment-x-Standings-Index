@@ -7,6 +7,7 @@ load_dotenv()
 
 STARSCAPE_BASE = "https://starscape.infegy.com/api"
 TOKEN = os.getenv("STARSCAPE_TOKEN")
+print(f"STARSCAPE_TOKEN loaded: {'YES (len=' + str(len(TOKEN)) + ')' if TOKEN else 'NO - TOKEN IS MISSING'}")
 
 HEADERS = {
     "Authorization": f"Bearer {TOKEN}",
@@ -84,6 +85,7 @@ def get_team_sentiment(team):
         }
 
     except Exception as e:
+        print(f"  ERROR fetching sentiment for {team.get('name', '?')}: {e}")
         return {
             "total": 0, "positive": 0, "negative": 0, "neutral": 0,
             "sentiment_ratio": 0.5, "positive_pct": 0,
