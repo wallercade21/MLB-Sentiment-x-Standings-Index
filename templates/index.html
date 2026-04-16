@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MLB Sentiment vs Standings</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 32px 28px;
+    }
+    h1 { font-size: 1.6rem; font-weight: 700; color: #fff; }
+    .subtitle { font-size: 0.85rem; color: #555; margin-top: 4px; margin-bottom: 32px; }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2a2d36;
+      border-radius: 10px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 20px;
+    }
+
+    /* Scatter chart */
+    .scatter-wrap { position: relative; height: 480px; }
+
+    /* Quadrant labels */
+    .quadrant-labels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .quadrant {
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      color: #666;
+      border: 1px solid #1e2130;
+    }
+    .q-label { font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
+    .q1 .q-label { color: #4ade80; }
+    .q2 .q-label { color: #f87171; }
+    .q3 .q-label { color: #60a5fa; }
+    .q4 .q-label { color: #94a3b8; }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #555;
+      border-bottom: 1px solid #2a2d36;
+    }
+    tbody tr {
+      border-bottom: 1px solid #1a1d27;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: #1e2130; }
+    td { padding: 10px 12px; }
+    .team-name { color: #fff; font-weight: 500; }
+    .team-abbr { color: #555; font-size: 0.78rem; margin-left: 6px; }
+    .division-badge {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: #1e2130;
+      color: #666;
+      border: 1px solid #2a2d36;
+    }
+    .sentiment-bar-wrap {
+      display: flex;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      width: 100px;
+      background: #2a2d36;
+    }
+    .bar-pos { background: #4ade80; height: 100%; }
+    .bar-neg { background: #f87171; height: 100%; }
+    .bar-neu { background: #94a3b8; height: 100%; }
+    .ratio-val { font-weight: 600; font-size: 0.9rem; }
+    .ratio-high { color: #4ade80; }
+    .ratio-mid  { color: #facc15; }
+    .ratio-low  { color: #f87171; }
+    .win-pct { color: #ccc; }
+    .record { color: #666; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<h1>MLB Sentiment vs Standings</h1>
+<p class="subtitle">Social sentiment from Infegy Starscape correlated with current MLB standings · Since {{ "Winter Meetings (Dec 2024)" }}</p>
+
+<!-- Scatter Plot -->
+<div class="card">
+  <div class="card-title">Fan Positivity Score vs Win Percentage — All 30 Teams</div>
+  <div class="scatter-wrap">
+    <canvas id="scatterChart"></canvas>
+  </div>
+  <div class="quadrant-labels">
+    <div class="quadrant q1"><div class="q-label">High Wins · High Sentiment</div>Beloved winners</div>
+    <div class="quadrant q2"><div class="q-label">High Wins · Low Sentiment</div>Successful but divisive</div>
+    <div class="quadrant q3"><div class="q-label">Low Wins · High Sentiment</div>Lovable losers</div>
+    <div class="quadrant q4"><div class="q-label">Low Wins · Low Sentiment</div>Quiet rebuilds</div>
+  </div>
+</div>
+
+<!-- Leaderboard Table -->
+<div class="card">
+  <div class="card-title">Sentiment Leaderboard — All 30 Teams</div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Team</th>
+        <th>Division</th>
+        <th>Record</th>
+        <th>Win %</th>
+        <th>Fan Positivity Score</th>
+        <th>Sentiment Mix</th>
+        <th>Total Posts</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for team in teams %}
+      <tr onclick="window.location='/team/{{ team.abbr }}'">
+        <td style="color:#555">{{ team.sentiment_rank }}</td>
+        <td>
+          <span class="team-name">{{ team.name }}</span>
+          <span class="team-abbr">{{ team.abbr }}</span>
+        </td>
+        <td><span class="division-badge">{{ team.division }}</span></td>
+        <td class="record">{{ team.wins }}–{{ team.losses }}</td>
+        <td class="win-pct">{{ "%.3f"|format(team.win_pct) }}</td>
+        <td>
+          {% set ratio = team.sentiment_ratio %}
+          <span class="ratio-val {% if ratio >= 0.6 %}ratio-high{% elif ratio >= 0.45 %}ratio-mid{% else %}ratio-low{% endif %}">
+            {{ "%.3f"|format(ratio) }}
+          </span>
+        </td>
+        <td>
+          <div class="sentiment-bar-wrap">
+            <div class="bar-pos" style="width:{{ team.positive_pct }}%"></div>
+            <div class="bar-neg" style="width:{{ team.negative_pct }}%"></div>
+            <div class="bar-neu" style="width:{{ team.neutral_pct }}%"></div>
+          </div>
+        </td>
+        <td style="color:#555">{{ "{:,}".format(team.total) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const teamData = {{ teams | tojson }};
+
+  // Color points by division
+  const divisionColors = {
+    "AL East":    "#60a5fa",
+    "AL Central": "#818cf8",
+    "AL West":    "#a78bfa",
+    "NL East":    "#f472b6",
+    "NL Central": "#fb923c",
+    "NL West":    "#34d399"
+  };
+
+  const scatterPoints = teamData.map(t => ({
+    x: t.win_pct,
+    y: t.sentiment_ratio,
+    label: t.abbr,
+    name: t.name,
+    division: t.division,
+    record: `${t.wins}–${t.losses}`
+  }));
+
+  // Group by division for colored datasets
+  const divisions = [...new Set(teamData.map(t => t.division))];
+  const datasets = divisions.map(div => ({
+    label: div,
+    data: scatterPoints.filter(p => p.division === div),
+    backgroundColor: divisionColors[div] + "cc",
+    borderColor: divisionColors[div],
+    pointRadius: 8,
+    pointHoverRadius: 11
+  }));
+
+  const ctx = document.getElementById("scatterChart").getContext("2d");
+
+  // Custom plugin to draw team abbreviation labels on points
+  const labelPlugin = {
+    id: "teamLabels",
+    afterDatasetsDraw(chart) {
+      const { ctx } = chart;
+      chart.data.datasets.forEach((dataset, i) => {
+        const meta = chart.getDatasetMeta(i);
+        meta.data.forEach((point, j) => {
+          const d = dataset.data[j];
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 9px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(d.label, point.x, point.y - 12);
+        });
+      });
+    }
+  };
+
+  new Chart(ctx, {
+    type: "scatter",
+    data: { datasets },
+    plugins: [labelPlugin],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: "#666", boxWidth: 10, font: { size: 11 } }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const d = ctx.raw;
+              return [`${d.name} (${d.record})`, `Win %: ${d.x.toFixed(3)}`, `Sentiment: ${d.y.toFixed(3)}`];
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: "Win Percentage", color: "#555", font: { size: 11 } },
+          ticks: { color: "#555" },
+          grid: { color: "#1a1d27" },
+          min: 0.3, max: 0.80
+        },
+        y: {
+          title: { display: true, text: "Fan Positivity Score", color: "#555", font: { size: 11 } },
+          ticks: { color: "#555" },
+          grid: { color: "#1a1d27" },
+          min: 0.80, max: 0.95
+        }
+      },
+      onClick: (e, elements) => {
+        if (elements.length > 0) {
+          const el = elements[0];
+          const abbr = datasets[el.datasetIndex].data[el.index].label;
+          window.location = `/team/${abbr}`;
+        }
+      }
+    }
+  });
+</script>
+</body>
+</html>
