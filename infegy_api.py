@@ -1,9 +1,6 @@
 import os
 import requests
-from dotenv import load_dotenv
 from config import DATASET_ID, SEASON_START, TEAMS
-
-load_dotenv()
 
 STARSCAPE_BASE = "https://starscape.infegy.com/api"
 def get_headers():
