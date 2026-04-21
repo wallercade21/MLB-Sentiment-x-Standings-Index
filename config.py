@@ -3,7 +3,7 @@
 # and a query object to pass directly to the Infegy API.
 # Queries match either the team name OR their official fan hashtag.
 
-SEASON_START = "2024-12-01"  # Winter meetings
+SEASON_START = "2025-12-01"  # Winter meetings 2025
 DATASET_ID = "ds_gj4u3F40SLa"
 
 def _team_query(name, hashtag):

@@ -104,7 +104,7 @@
 <body>
 
 <h1>MLB Sentiment vs Standings</h1>
-<p class="subtitle">Social sentiment from Infegy Starscape correlated with current MLB standings · Since {{ "Winter Meetings (Dec 2024)" }}</p>
+<p class="subtitle">Social sentiment from Infegy Starscape correlated with current MLB standings · Since {{ "Winter Meetings (Dec 2025)" }}</p>
 
 <!-- Scatter Plot -->
 <div class="card">
@@ -344,7 +344,45 @@
   });
 
   // --- Division trend charts (lazy loaded) ---
-  const trendColors = ["#4f7cff", "#f87171", "#4ade80", "#facc15", "#c084fc"];
+  // Official team primary colors (secondary used where primaries clash within same division)
+  const MLB_COLORS = {
+    // AL East
+    "NYY": "#003087",  // Yankees navy
+    "BOS": "#BD3039",  // Red Sox red
+    "TOR": "#134A8E",  // Blue Jays blue
+    "TB":  "#8FBCE6",  // Rays columbia blue (secondary — navy too close to NYY/TOR)
+    "BAL": "#DF4601",  // Orioles orange
+    // AL Central
+    "CLE": "#00385D",  // Guardians navy
+    "MIN": "#BA0C2F",  // Twins red (secondary — navy too close to CLE)
+    "CWS": "#C4CED4",  // White Sox silver (primary black invisible on dark bg)
+    "KC":  "#BD9B60",  // Royals gold (secondary — navy too close to CLE)
+    "DET": "#FA4616",  // Tigers orange (secondary — navy too close to CLE)
+    // AL West
+    "HOU": "#EB6E1F",  // Astros orange (secondary)
+    "SEA": "#005C5C",  // Mariners teal
+    "TEX": "#C0111F",  // Rangers red
+    "LAA": "#003263",  // Angels navy (secondary — primary red too close to TEX)
+    "OAK": "#EFB21E",  // Athletics gold
+    // NL East
+    "ATL": "#13274F",  // Braves navy
+    "NYM": "#FF5910",  // Mets orange (secondary — blue too close to ATL navy)
+    "PHI": "#E81828",  // Phillies red
+    "MIA": "#00A3E0",  // Marlins blue
+    "WSH": "#AB0003",  // Nationals dark red (secondary — navy too close to ATL)
+    // NL Central
+    "MIL": "#FFC52F",  // Brewers gold
+    "CHC": "#0E3386",  // Cubs blue
+    "CIN": "#C6011F",  // Reds red
+    "PIT": "#A8A9AD",  // Pirates silver (gold too close to MIL)
+    "STL": "#0C2340",  // Cardinals navy (red too close to CIN)
+    // NL West
+    "LAD": "#005A9C",  // Dodgers blue
+    "SF":  "#FD5A1E",  // Giants orange
+    "SD":  "#FFC425",  // Padres gold
+    "ARI": "#A71930",  // D-backs red
+    "COL": "#33006F",  // Rockies purple
+  };
 
   function renderDivisionChart(div, divData) {
     const canvas = document.getElementById(`chart-${div}`);
@@ -358,7 +396,7 @@
     const datasets = divData.teams.map((team, i) => ({
       label: team.abbr,
       data: team.data,
-      borderColor: trendColors[i % trendColors.length],
+      borderColor: MLB_COLORS[team.abbr] || "#888",
       backgroundColor: "transparent",
       tension: 0.3,
       pointRadius: 2,
