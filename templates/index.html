@@ -202,13 +202,21 @@
     "NL West":    "#34d399"
   };
 
+  // Normalize avg_posts_per_day to bubble radius range 6–22
+  const postVols = teamData.map(t => t.avg_posts_per_day);
+  const minVol = Math.min(...postVols);
+  const maxVol = Math.max(...postVols);
+  const normalizeR = v => maxVol === minVol ? 12 : 6 + ((v - minVol) / (maxVol - minVol)) * 16;
+
   const scatterPoints = teamData.map(t => ({
     x: t.win_pct,
     y: t.sentiment_ratio,
+    r: normalizeR(t.avg_posts_per_day),
     label: t.abbr,
     name: t.name,
     division: t.division,
-    record: `${t.wins}–${t.losses}`
+    record: `${t.wins}–${t.losses}`,
+    avg_posts_per_day: t.avg_posts_per_day
   }));
 
   // Group by division for colored datasets
@@ -218,8 +226,6 @@
     data: scatterPoints.filter(p => p.division === div),
     backgroundColor: divisionColors[div] + "cc",
     borderColor: divisionColors[div],
-    pointRadius: 8,
-    pointHoverRadius: 11
   }));
 
   const ctx = document.getElementById("scatterChart").getContext("2d");
@@ -243,7 +249,7 @@
   };
 
   new Chart(ctx, {
-    type: "scatter",
+    type: "bubble",
     data: { datasets },
     plugins: [labelPlugin],
     options: {
@@ -257,7 +263,12 @@
           callbacks: {
             label: ctx => {
               const d = ctx.raw;
-              return [`${d.name} (${d.record})`, `Win %: ${d.x.toFixed(3)}`, `Sentiment: ${d.y.toFixed(3)}`];
+              return [
+                `${d.name} (${d.record})`,
+                `Win %: ${d.x.toFixed(3)}`,
+                `Sentiment: ${d.y.toFixed(3)}`,
+                `Avg posts/day: ${d.avg_posts_per_day.toLocaleString()}`
+              ];
             }
           }
         }

@@ -1,8 +1,9 @@
 import os
+from datetime import datetime
 from flask import Flask, render_template, jsonify, redirect
 from flask_caching import Cache
 from dotenv import load_dotenv
-from config import TEAMS, TEAM_BY_MLB_ID
+from config import TEAMS, TEAM_BY_MLB_ID, SEASON_START
 from mlb_api import get_current_standings, get_historical_standings
 from infegy_api import get_all_team_sentiments, get_team_sentiment_history
 
@@ -40,6 +41,11 @@ def build_dashboard_data():
             "win_pct":  s.get("win_pct", 0.0),
             "games_back": s.get("games_back", "-"),
         })
+
+    # Calculate avg posts per day since season start
+    days_elapsed = max((datetime.today() - datetime.strptime(SEASON_START, "%Y-%m-%d")).days, 1)
+    for team in merged:
+        team["avg_posts_per_day"] = round(team["total"] / days_elapsed, 1)
 
     # Sort by sentiment ratio descending for the leaderboard
     merged.sort(key=lambda x: x["sentiment_ratio"], reverse=True)
