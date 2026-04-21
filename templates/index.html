@@ -87,6 +87,18 @@
     .ratio-low  { color: #f87171; }
     .win-pct { color: #ccc; }
     .record { color: #666; font-size: 0.8rem; }
+
+    /* Division trend charts */
+    .division-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .division-grid .card { margin-bottom: 0; }
+    .trend-wrap { position: relative; height: 260px; }
+    .loading-msg { color: #444; font-size: 0.8rem; text-align: center; padding-top: 100px; }
+    @media (max-width: 900px) { .division-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
@@ -147,6 +159,34 @@
       {% endfor %}
     </tbody>
   </table>
+</div>
+
+<!-- Division Sentiment Trend Charts -->
+<div class="division-grid">
+  <div class="card" id="card-al-east">
+    <div class="card-title">AL East — Sentiment Trend</div>
+    <div class="trend-wrap"><div class="loading-msg">Loading...</div><canvas id="chart-AL East" style="display:none"></canvas></div>
+  </div>
+  <div class="card" id="card-nl-east">
+    <div class="card-title">NL East — Sentiment Trend</div>
+    <div class="trend-wrap"><div class="loading-msg">Loading...</div><canvas id="chart-NL East" style="display:none"></canvas></div>
+  </div>
+  <div class="card" id="card-al-central">
+    <div class="card-title">AL Central — Sentiment Trend</div>
+    <div class="trend-wrap"><div class="loading-msg">Loading...</div><canvas id="chart-AL Central" style="display:none"></canvas></div>
+  </div>
+  <div class="card" id="card-nl-central">
+    <div class="card-title">NL Central — Sentiment Trend</div>
+    <div class="trend-wrap"><div class="loading-msg">Loading...</div><canvas id="chart-NL Central" style="display:none"></canvas></div>
+  </div>
+  <div class="card" id="card-al-west">
+    <div class="card-title">AL West — Sentiment Trend</div>
+    <div class="trend-wrap"><div class="loading-msg">Loading...</div><canvas id="chart-AL West" style="display:none"></canvas></div>
+  </div>
+  <div class="card" id="card-nl-west">
+    <div class="card-title">NL West — Sentiment Trend</div>
+    <div class="trend-wrap"><div class="loading-msg">Loading...</div><canvas id="chart-NL West" style="display:none"></canvas></div>
+  </div>
 </div>
 
 <script>
@@ -302,6 +342,76 @@
       }).join("");
     });
   });
+
+  // --- Division trend charts (lazy loaded) ---
+  const trendColors = ["#4f7cff", "#f87171", "#4ade80", "#facc15", "#c084fc"];
+
+  function renderDivisionChart(div, divData) {
+    const canvas = document.getElementById(`chart-${div}`);
+    if (!canvas) return;
+
+    // Hide loading message, show canvas
+    const wrap = canvas.parentElement;
+    wrap.querySelector(".loading-msg").style.display = "none";
+    canvas.style.display = "block";
+
+    const datasets = divData.teams.map((team, i) => ({
+      label: team.abbr,
+      data: team.data,
+      borderColor: trendColors[i % trendColors.length],
+      backgroundColor: "transparent",
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      borderWidth: 2,
+      spanGaps: true
+    }));
+
+    new Chart(canvas.getContext("2d"), {
+      type: "line",
+      data: { labels: divData.labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: "index", intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: "#666", boxWidth: 8, font: { size: 10 } }
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y != null ? ctx.parsed.y.toFixed(3) : "—"}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: "#555", maxTicksLimit: 8, font: { size: 9 } },
+            grid: { color: "#1a1d27" }
+          },
+          y: {
+            min: 0.75, max: 1.0,
+            ticks: { color: "#555", font: { size: 9 } },
+            grid: { color: "#1a1d27" }
+          }
+        }
+      }
+    });
+  }
+
+  // Fetch division trends asynchronously after page load
+  fetch("/api/division-trends")
+    .then(r => r.json())
+    .then(data => {
+      Object.entries(data).forEach(([div, divData]) => {
+        renderDivisionChart(div, divData);
+      });
+    })
+    .catch(err => {
+      document.querySelectorAll(".loading-msg").forEach(el => {
+        el.textContent = "Failed to load trend data.";
+      });
+    });
 </script>
 </body>
 </html>

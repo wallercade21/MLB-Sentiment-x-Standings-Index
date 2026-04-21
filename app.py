@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, redirect
 from flask_caching import Cache
 from dotenv import load_dotenv
 from config import TEAMS, TEAM_BY_MLB_ID
@@ -103,11 +103,55 @@ def team_detail(abbr):
     )
 
 
+@app.route("/api/division-trends")
+@cache.cached(timeout=900, key_prefix="division_trends")
+def division_trends():
+    """
+    Returns weekly sentiment history for all 30 teams, grouped by division.
+    Called asynchronously by the dashboard after page load.
+    """
+    # Group teams by division (preserve order)
+    division_order = ["AL East", "AL Central", "AL West", "NL East", "NL Central", "NL West"]
+    divisions = {d: [] for d in division_order}
+    for team in TEAMS:
+        divisions[team["division"]].append(team)
+
+    result = {}
+    for div, teams in divisions.items():
+        print(f"Fetching trend history for {div}...")
+        all_dates = set()
+        team_histories = {}
+
+        for team in teams:
+            print(f"  {team['name']}...")
+            history = get_team_sentiment_history(team)
+            team_histories[team["abbr"]] = {
+                "name": team["name"],
+                "data": {h["date"]: h["sentiment_ratio"] for h in history}
+            }
+            all_dates.update(h["date"] for h in history)
+
+        labels = sorted(all_dates)
+
+        result[div] = {
+            "labels": labels,
+            "teams": [
+                {
+                    "abbr": abbr,
+                    "name": info["name"],
+                    "data": [info["data"].get(date, None) for date in labels]
+                }
+                for abbr, info in team_histories.items()
+            ]
+        }
+
+    return jsonify(result)
+
+
 @app.route("/refresh")
 def refresh():
     """Clears the cache and redirects to the dashboard for a fresh data load."""
     cache.clear()
-    from flask import redirect
     return redirect("/")
 
 
