@@ -3,6 +3,7 @@ import requests
 from config import DATASET_ID, SEASON_START, TEAMS
 
 STARSCAPE_BASE = "https://starscape.infegy.com/api"
+
 def get_headers():
     token = os.getenv("STARSCAPE_TOKEN")
     if not token:
@@ -11,6 +12,19 @@ def get_headers():
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json"
     }
+
+
+# Exclude replies and shares from all queries
+EXCLUDE_REPLIES_AND_SHARES = {
+    "op": "not",
+    "values": [
+        {
+            "op": "contains",
+            "fields": ["is_reply_or_share"],
+            "values": ["1", "2"]
+        }
+    ]
+}
 
 
 def get_team_sentiment(team):
@@ -34,7 +48,8 @@ def get_team_sentiment(team):
                     "field": "published",
                     "lower": SEASON_START,
                     "upper": "now"
-                }
+                },
+                EXCLUDE_REPLIES_AND_SHARES
             ]
         },
         "aggs": {
@@ -122,7 +137,8 @@ def get_team_sentiment_history(team):
                     "field": "published",
                     "lower": SEASON_START,
                     "upper": "now"
-                }
+                },
+                EXCLUDE_REPLIES_AND_SHARES
             ]
         },
         "aggs": {
