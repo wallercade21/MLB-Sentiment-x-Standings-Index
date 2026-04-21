@@ -36,26 +36,6 @@
     /* Scatter chart */
     .scatter-wrap { position: relative; height: 480px; }
 
-    /* Quadrant labels */
-    .quadrant-labels {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      margin-top: 16px;
-    }
-    .quadrant {
-      padding: 8px 14px;
-      border-radius: 6px;
-      font-size: 0.78rem;
-      color: #666;
-      border: 1px solid #1e2130;
-    }
-    .q-label { font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
-    .q1 .q-label { color: #4ade80; }
-    .q2 .q-label { color: #f87171; }
-    .q3 .q-label { color: #60a5fa; }
-    .q4 .q-label { color: #94a3b8; }
-
     /* Table */
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     thead th {
@@ -66,7 +46,13 @@
       letter-spacing: 0.05em;
       color: #555;
       border-bottom: 1px solid #2a2d36;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
     }
+    thead th:hover { color: #aaa; }
+    thead th.sort-asc::after  { content: " ↑"; color: #4f7cff; }
+    thead th.sort-desc::after { content: " ↓"; color: #4f7cff; }
     tbody tr {
       border-bottom: 1px solid #1a1d27;
       cursor: pointer;
@@ -110,35 +96,29 @@
 
 <!-- Scatter Plot -->
 <div class="card">
-  <div class="card-title">Fan Positivity Score vs Win Percentage — All 30 Teams</div>
+  <div class="card-title">Social Sentiment vs Win Percentage — All 30 Teams</div>
   <div class="scatter-wrap">
     <canvas id="scatterChart"></canvas>
-  </div>
-  <div class="quadrant-labels">
-    <div class="quadrant q1"><div class="q-label">High Wins · High Sentiment</div>Beloved winners</div>
-    <div class="quadrant q2"><div class="q-label">High Wins · Low Sentiment</div>Successful but divisive</div>
-    <div class="quadrant q3"><div class="q-label">Low Wins · High Sentiment</div>Lovable losers</div>
-    <div class="quadrant q4"><div class="q-label">Low Wins · Low Sentiment</div>Quiet rebuilds</div>
   </div>
 </div>
 
 <!-- Leaderboard Table -->
 <div class="card">
   <div class="card-title">Sentiment Leaderboard — All 30 Teams</div>
-  <table>
+  <table id="leaderboard">
     <thead>
       <tr>
-        <th>#</th>
-        <th>Team</th>
-        <th>Division</th>
-        <th>Record</th>
-        <th>Win %</th>
-        <th>Fan Positivity Score</th>
-        <th>Sentiment Mix</th>
-        <th>Total Posts</th>
+        <th data-col="sentiment_rank" data-type="num">#</th>
+        <th data-col="name" data-type="str">Team</th>
+        <th data-col="division" data-type="str">Division</th>
+        <th data-col="wins" data-type="num">Record</th>
+        <th data-col="win_pct" data-type="num">Win %</th>
+        <th data-col="sentiment_ratio" data-type="num">Social Sentiment</th>
+        <th data-col="positive_pct" data-type="num">Sentiment Mix</th>
+        <th data-col="total" data-type="num">Total Posts</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="leaderboard-body">
       {% for team in teams %}
       <tr onclick="window.location='/team/{{ team.abbr }}'">
         <td style="color:#555">{{ team.sentiment_rank }}</td>
@@ -250,7 +230,7 @@
           min: 0.3, max: 0.80
         },
         y: {
-          title: { display: true, text: "Fan Positivity Score", color: "#555", font: { size: 11 } },
+          title: { display: true, text: "Social Sentiment", color: "#555", font: { size: 11 } },
           ticks: { color: "#555" },
           grid: { color: "#1a1d27" },
           min: 0.80, max: 0.95
@@ -264,6 +244,63 @@
         }
       }
     }
+  });
+
+  // --- Sortable table ---
+  let sortCol = null;
+  let sortDir = 1; // 1 = asc, -1 = desc
+
+  document.querySelectorAll("#leaderboard thead th").forEach(th => {
+    th.addEventListener("click", () => {
+      const col = th.dataset.col;
+      const type = th.dataset.type;
+
+      if (sortCol === col) {
+        sortDir *= -1;
+      } else {
+        sortCol = col;
+        sortDir = 1;
+      }
+
+      // Update header indicators
+      document.querySelectorAll("#leaderboard thead th").forEach(h => {
+        h.classList.remove("sort-asc", "sort-desc");
+      });
+      th.classList.add(sortDir === 1 ? "sort-asc" : "sort-desc");
+
+      // Sort teamData copy
+      const sorted = [...teamData].sort((a, b) => {
+        const av = type === "num" ? Number(a[col]) : String(a[col]).toLowerCase();
+        const bv = type === "num" ? Number(b[col]) : String(b[col]).toLowerCase();
+        if (av < bv) return -1 * sortDir;
+        if (av > bv) return  1 * sortDir;
+        return 0;
+      });
+
+      // Rebuild tbody
+      const tbody = document.getElementById("leaderboard-body");
+      tbody.innerHTML = sorted.map(t => {
+        const ratio = t.sentiment_ratio;
+        const ratioClass = ratio >= 0.6 ? "ratio-high" : ratio >= 0.45 ? "ratio-mid" : "ratio-low";
+        return `
+          <tr onclick="window.location='/team/${t.abbr}'">
+            <td style="color:#555">${t.sentiment_rank}</td>
+            <td><span class="team-name">${t.name}</span><span class="team-abbr">${t.abbr}</span></td>
+            <td><span class="division-badge">${t.division}</span></td>
+            <td class="record">${t.wins}–${t.losses}</td>
+            <td class="win-pct">${t.win_pct.toFixed(3)}</td>
+            <td><span class="ratio-val ${ratioClass}">${ratio.toFixed(3)}</span></td>
+            <td>
+              <div class="sentiment-bar-wrap">
+                <div class="bar-pos" style="width:${t.positive_pct}%"></div>
+                <div class="bar-neg" style="width:${t.negative_pct}%"></div>
+                <div class="bar-neu" style="width:${t.neutral_pct}%"></div>
+              </div>
+            </td>
+            <td style="color:#555">${t.total.toLocaleString()}</td>
+          </tr>`;
+      }).join("");
+    });
   });
 </script>
 </body>
